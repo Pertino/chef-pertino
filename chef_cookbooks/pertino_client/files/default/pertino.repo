@@ -1,0 +1,6 @@
+[pertino-client]
+name=Pertino VPN Client
+baseurl=http://reposerver.pertino.com/rpms
+gpgcheck=1
+gpgkey=http://reposerver.pertino.com/Pertino-GPG-Key.pub
+enabled=1
