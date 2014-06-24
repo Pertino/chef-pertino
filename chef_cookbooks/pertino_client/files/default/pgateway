@@ -1,0 +1,156 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          pertino-client
+# Required-Start:    $remote_fs $network
+# Required-Stop:     $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Pertino Client
+# Description:       The Pertino Client provides access to the Pertino Network (PROD).
+### END INIT INFO
+
+# Using the lsb functions to perform the operations.
+. /lib/lsb/init-functions
+
+# Process name ( For display )
+NAME=pertino_client
+DESC="Pertino Client"
+CHILD_NAME=pGateway
+
+# Daemon name, where is the actual executable
+DAEMON=/opt/pertino/pgateway/pGateway
+
+# pid file for the daemon
+PIDFILE=/opt/pertino/pgateway/run/pgateway.pid
+WORKING_DIR=/opt/pertino/pgateway
+
+# If the daemon is not there, then exit.
+test -x $DAEMON || exit 5
+
+
+# verify if a pid is alive
+# param $1 = pidfile
+# return 0 if alive
+#        non-zero value if not alive
+is_alive()
+{
+	pid=`cat $1` > /dev/null 2>&1
+	kill -0 $pid > /dev/null 2>&1
+	return $?
+}
+
+# start function
+# return 0 - successfully started daemon
+#        1 - daemon is already started
+#        2 - failed to start the daemon
+do_start()
+{
+	is_alive $PIDFILE
+	if [ $? -ne 0 ]; then
+		# Start the daemon with the help of start-stop-daemon
+		start-stop-daemon --quiet -b -m --oknodo --pidfile $PIDFILE -d $WORKING_DIR --start --exec $DAEMON
+		case $? in
+			0)	
+				return 0
+				;;
+			1)	
+				return 1
+				;;
+			*)	
+				return 2
+				;;
+		esac
+	fi
+	
+	return 1
+}
+
+# stop function
+# return 0 - successfully stopped daemon
+#        1 - daemon is already stopped
+#        2 - failed to stop the daemon
+do_stop()
+{
+	is_alive $PIDFILE
+	if [ $? -eq 0 ]; then
+		start-stop-daemon --stop --quiet --oknodo --retry 5 --pidfile $PIDFILE
+		case $? in
+			0)	
+				/bin/rm -rf $PIDFILE
+				return 0
+				;;
+			2)	
+				return 2
+				;;
+			*)	
+				/bin/rm -rf $PIDFILE
+				sleep 2
+				/usr/bin/pkill -9 -f $CHILD_NAME
+				return 0
+		esac
+	fi
+	
+	return 1
+}
+
+case $1 in
+	start)
+		log_daemon_msg "Starting" "$DESC"
+		do_start
+		case $? in
+			0|1)
+				log_end_msg 0
+				;;
+			2)	
+				log_end_msg 1
+				;;
+		esac
+		;;
+	stop)
+		log_daemon_msg "Stopping" "$DESC"
+		do_stop
+		case $? in
+			0|1)
+				log_end_msg 0
+				;;
+			2)
+				log_end_msg 1
+				;;
+		esac
+		;;
+	restart|force-reload)
+		log_daemon_msg "Restarting" "$DESC"
+		do_stop
+		case $? in
+			0|1)
+				sleep 3
+				do_start
+				case $? in
+					0|1)
+						log_end_msg 0
+						;;
+					2)	
+						log_end_msg 1
+						;;
+				esac
+				;;
+			2)	
+				log_end_msg 1
+				;;
+		esac
+		;;
+	status)
+		is_alive $PIDFILE
+		if [ $? -eq 0 ]; then
+			log_daemon_msg "$DESC is running"
+		else
+			log_daemon_msg "$DESC is not running"
+		fi
+		log_end_msg 0
+		;;
+	*)
+		# For invalid arguments, print the usage message.
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 2
+		;;
+esac

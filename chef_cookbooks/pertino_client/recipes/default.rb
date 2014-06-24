@@ -7,8 +7,7 @@
 # All rights reserved - Do Not Redistribute
 #
 
-log "pertino installer" do
-  message "Installing Pertino client"
+log "Installing Pertino client" do
   level :info
 end
 
@@ -55,6 +54,16 @@ execute "configure pertino client" do
   cwd "/opt/pertino/pgateway"
   action :nothing
   notifies :start, "service[enable pertino client]", :delayed
+end
+
+case node["platform_family"]
+when "debian"
+  cookbook_file "pgateway" do
+    path "/etc/init.d/pgateway"
+    mode 0755
+    owner 'root'
+    group 'root'
+  end
 end
 
 service "enable pertino client" do
